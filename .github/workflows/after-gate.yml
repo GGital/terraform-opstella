@@ -1,0 +1,24 @@
+name: Opstella After Gate Approve Terraform pipeline
+on:
+  workflow_call:
+
+jobs:
+  # Step7 : Terraform apply
+  terraform-apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init
+        run: |
+          terraform init
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve

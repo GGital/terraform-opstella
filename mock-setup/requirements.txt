@@ -1,0 +1,15 @@
+"""
+Requirements for running the complete local mock setup
+"""
+
+# FastAPI and Web Server
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Optional but recommended
+python-dotenv==1.0.0
+colorama==0.4.6

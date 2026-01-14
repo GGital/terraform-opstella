@@ -1,0 +1,31 @@
+name: Opstealla Gate Approve Terraform pipeline
+on:
+  workflow_call:
+    inputs:
+      api_endpoint:
+        description: "The API endpoint to call for gate approval"
+        required: true
+        type: string
+
+jobs:
+  # Step6 : Gate Approval
+  gate-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Awaiting Response from API
+        run: |
+          echo "Waiting for gate approval..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+          -X GET "${{ inputs.api_endpoint }}" \
+          -H "Accept: application/json" \
+          -d response.json)
+
+          APPROVAL_STATUS=$(echo "$RESPONSE" | jq .approval_status)
+
+          if [ "$APPROVAL_STATUS" != "approved" ]; then
+            echo "Gate not approved. Exiting pipeline."
+            exit 1
+          fi
+
+          echo "Gate approved. Proceeding to the next step."

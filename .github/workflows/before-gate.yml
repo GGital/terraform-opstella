@@ -1,0 +1,165 @@
+name: Opstella Before Gate Terraform pipeline
+on:
+  workflow_call:
+    inputs:
+      trivy_iac_report_filename:
+        description: "The filename for the Trivy IaC report"
+        required: false
+        default: "trivy-iac-report.json"
+        type: string
+      terraform_plan_output_filename:
+        description: "The filename for the Terraform plan output"
+        required: false
+        default: "terraform-plan-output.json"
+        type: string
+      report_retention_days:
+        description: "Number of days to retain the reports"
+        required: false
+        default: 7
+        type: number
+env:
+  TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
+jobs:
+  # Step1 : Terraform Format Check
+  terraform-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Format Check
+        id: fmt
+        run: |
+          terraform fmt -check -recursive
+
+  # Step2 : Terraform validate
+  terraform-validate:
+    runs-on: ubuntu-latest
+    needs: terraform-format
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - &create-plugin-cache-dir
+        name: Create Plugin Cache Dir
+        run: mkdir -p $TF_PLUGIN_CACHE_DIR
+
+      - &cache-terraform-providers
+        name: Cache Terraform Providers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init
+        run: |
+          terraform init
+
+      - name: Terraform Validate
+        run: |
+          terraform validate
+
+  # Step3 : TF Lint
+  terraform-lint:
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Install tflint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+      - name: Run tflint
+        run: |
+          tflint --init
+          tflint
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Step4 : Trivy IaC Scan
+  Trivy-IAC-scan:
+    runs-on: ubuntu-latest
+    needs: terraform-lint
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      # - name: Generate Kubernetes Manifest files with Helm Template
+      #   if: "${{ inputs.helm_values_file != '' }}"
+      #   run: |
+      #     helm template -f ${{ inputs.helm_values_file }} --namespace not-default \
+      #       ${{ inputs.sourcecode_repo }}-${{ inputs.deploy_env }} \
+      #       ${{ inputs.helm_chart_name }} --version ${{ inputs.helm_chart_version }} \
+      #       > ${{ inputs.sourcecode_repo }}-manifest.yaml
+
+      - name: Generate Trivy IaC Vulnerability Report
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: "fs"
+          scan-ref: .
+          scanners: "misconfig,secret"
+          format: json
+          # trivyignores: .trivyignore
+          output:
+            ${{ inputs.trivy_iac_report_filename }}
+
+            # ${{ inputs.sourcecode_repo }}-manifest.yaml
+      - name: Upload Trivy IaC Report
+        uses: actions/upload-artifact@v6
+        with:
+          name: trivy-iac-report
+          path: |
+            ${{ inputs.trivy_iac_report_filename }}
+          retention-days: ${{ inputs.report_retention_days }}
+
+  # Step5 : Terraform Plan
+  Terraform-plan:
+    runs-on: ubuntu-latest
+    needs: Trivy-IAC-scan
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - *create-plugin-cache-dir
+
+      - *cache-terraform-providers
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -out=tfplan.binary -input=false
+
+      - name: Save Terraform Plan Output
+        run: |
+          terraform show -json tfplan.binary > ${{ inputs.terraform_plan_output_filename }}
+
+      - name: Upload Terraform Plan Output
+        uses: actions/upload-artifact@v6
+        with:
+          name: terraform-plan-output
+          path: ${{ inputs.terraform_plan_output_filename }}
+          retention-days: ${{ inputs.report_retention_days }}
