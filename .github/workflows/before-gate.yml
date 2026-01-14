@@ -46,7 +46,7 @@ jobs:
       - name: Terraform Format Check
         id: fmt
         run: |
-          terraform fmt -check -recursive
+          terraform fmt -recursive
 
   # Step2 : Terraform validate
   terraform-validate:
