@@ -27,6 +27,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - &create-plugin-cache-dir
+        name: Create Plugin Cache Dir
+        run: mkdir -p $TF_PLUGIN_CACHE_DIR
+
+      - &cache-terraform-providers
+        name: Cache Terraform Providers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -45,16 +56,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - &create-plugin-cache-dir
-        name: Create Plugin Cache Dir
-        run: mkdir -p $TF_PLUGIN_CACHE_DIR
+      - *create-plugin-cache-dir
 
-      - &cache-terraform-providers
-        name: Cache Terraform Providers
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+      - *cache-terraform-providers
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
