@@ -1,11 +1,6 @@
 name: Opstealla Gate Approve Terraform pipeline
 on:
   workflow_call:
-    inputs:
-      api_endpoint:
-        description: "The API endpoint to call for gate approval"
-        required: true
-        type: string
 
 jobs:
   # Step6 : Gate Approval
@@ -17,7 +12,7 @@ jobs:
           echo "Waiting for gate approval..."
 
           RESPONSE=$(curl -s -w "\n%{http_code}" \
-          -X GET "${{ inputs.api_endpoint }}" \
+          -X GET "${{ secrets.GATE_APPROVAL_API_ENDPOINT }}" \
           -H "Accept: application/json" \
           -d response.json)
 

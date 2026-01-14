@@ -12,8 +12,6 @@ jobs:
   gate-approval-pipeline:
     uses: ./.github/workflows/gate-approval.yml
     needs: before-gate-pipeline
-    with:
-      api_endpoint: ${{ secrets.GATE_APPROVAL_API_ENDPOINT }}
     secrets: inherit
 
   after-gate-pipeline:
