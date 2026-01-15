@@ -52,6 +52,8 @@ jobs:
             ${{ env.TF_PLUGIN_CACHE_DIR }}
             terraform
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+      - name: List files
+        run: ls -R terraform
 
   # Step2 : Terraform validate
   terraform-validate:
@@ -83,6 +85,9 @@ jobs:
 
       - *save-cache-terraform-providers
 
+      - name: List files
+        run: ls -R terraform
+
   # Step3 : TF Lint
   terraform-lint:
     runs-on: ubuntu-latest
@@ -110,6 +115,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - *save-cache-terraform-providers
+
+      - name: List files
+        run: ls -R terraform
 
   # Step4 : Trivy IaC Scan
   Trivy-IAC-scan:
