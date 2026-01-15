@@ -1,26 +1,26 @@
 output "output_directory" {
   description = "Directory where terraform outputs are stored"
-  value       = "${path.module}/../../outputs"
+  value       = var.output_directory
 }
 
 output "project_info" {
   description = "Project information"
   value = {
-    project_name = "opstella-local"
-    environment  = "dev"
-    terraform_version = "1.5.7"
+    project_name       = var.project_name
+    environment        = var.environment
+    terraform_version  = var.terraform_version
   }
 }
 
 output "approval_service_url" {
   description = "URL of the approval service"
-  value       = "http://localhost:8000"
+  value       = var.approval_service_url
 }
 
 output "pipeline_config" {
   description = "Local pipeline configuration"
   value = {
-    orchestrator = "run_local_pipeline.py"
-    approval_api = "http://localhost:8000/approval"
+    orchestrator = var.pipeline_orchestrator_entrypoint
+    approval_api = "${var.approval_service_url}/approval"
   }
 }
