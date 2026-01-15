@@ -47,12 +47,12 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform -chdir=terraform init
+          terraform -chdir=terraform init -input=false
 
       - name: Terraform Format Check
         id: fmt
         run: |
-          terraform fmt -recursive
+          terraform -chdir=terraform fmt -recursive
 
       - &save-cache-terraform-providers
         name: Save Terraform Cache
