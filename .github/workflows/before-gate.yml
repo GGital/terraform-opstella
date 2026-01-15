@@ -35,14 +35,18 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - name: Terraform Init
+        run: |
+          terraform -chdir=terraform init
+
       - name: Terraform Format Check
         id: fmt
         run: |
           terraform fmt -recursive
 
-      - &cache-terraform-providers
-        name: Cache Terraform Providers
-        uses: actions/cache@v4
+      - &save-cache-terraform-providers
+        name: Save Cache Terraform Providers
+        uses: actions/cache/save@v4
         with:
           path: |
             ${{ env.TF_PLUGIN_CACHE_DIR }}
@@ -59,20 +63,25 @@ jobs:
 
       - *create-plugin-cache-dir
 
-      - *cache-terraform-providers
+      - &restore-cache-terraform-providers
+        name: Restore Cache Terraform Providers
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.TF_PLUGIN_CACHE_DIR }}
+            terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
-      - name: Terraform Init
-        run: |
-          terraform -chdir=terraform init
-
       - name: Terraform Validate
         run: |
           terraform -chdir=terraform validate
+
+      - *save-cache-terraform-providers
 
   # Step3 : TF Lint
   terraform-lint:
@@ -87,6 +96,7 @@ jobs:
         with:
           terraform_version: 1.5.7
 
+      - *restore-cache-terraform-providers
       - name: Install tflint
         run: |
           curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
@@ -98,6 +108,8 @@ jobs:
           tflint
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - *save-cache-terraform-providers
 
   # Step4 : Trivy IaC Scan
   Trivy-IAC-scan:
@@ -148,18 +160,18 @@ jobs:
 
       - *create-plugin-cache-dir
 
-      - *cache-terraform-providers
+      - *restore-cache-terraform-providers
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
 
-      - name: Terraform Plan
+      - name: Terraform Init
         run: |
-          terraform -chdir=terraform plan -out=tfplan.binary -input=false
+          terraform -chdir=terraform init
 
-      - name: Save Terraform Plan Output
+      - name: Terraform form Plan Output
         run: |
           terraform -chdir=terraform show -json tfplan.binary > ${{ inputs.terraform_plan_output_filename }}
 
@@ -169,3 +181,5 @@ jobs:
           name: terraform-plan-output
           path: ${{ inputs.terraform_plan_output_filename }}
           retention-days: ${{ inputs.report_retention_days }}
+
+      - *save-cache-terraform-providers
