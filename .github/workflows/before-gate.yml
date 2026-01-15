@@ -80,7 +80,8 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7
-
+      - name: Terraform Init (Link Plugins)
+        run: terraform -chdir=terraform init -plugin-dir=$TF_PLUGIN_CACHE_DIR -input=false
       - name: Terraform Validate
         run: |
           terraform -chdir=terraform validate
@@ -177,9 +178,8 @@ jobs:
         with:
           terraform_version: 1.5.7
 
-      - name: Terraform Init
-        run: |
-          terraform -chdir=terraform init
+      - name: Terraform Init (Link Plugins)
+        run: terraform -chdir=terraform init -plugin-dir=$TF_PLUGIN_CACHE_DIR -input=false
 
       - name: Terraform form Plan Output
         run: |
