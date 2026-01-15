@@ -38,7 +38,6 @@ jobs:
         with:
           path: |
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-            terraform/.terraform
           key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/.terraform.lock.hcl') }}
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
@@ -61,7 +60,6 @@ jobs:
         with:
           path: |
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-            terraform/.terraform
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
   # Step2 : Terraform validate
@@ -81,7 +79,7 @@ jobs:
         with:
           terraform_version: 1.5.7
       - name: Terraform Init (Link Plugins)
-        run: terraform -chdir=terraform init -plugin-dir=$TF_PLUGIN_CACHE_DIR -input=false
+        run: terraform -chdir=terraform init -input=false
       - name: Terraform Validate
         run: |
           terraform -chdir=terraform validate
@@ -179,7 +177,7 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init (Link Plugins)
-        run: terraform -chdir=terraform init -plugin-dir=$TF_PLUGIN_CACHE_DIR -input=false
+        run: terraform -chdir=terraform init -input=false
 
       - name: Terraform form Plan Output
         run: |
