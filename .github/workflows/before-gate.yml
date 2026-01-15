@@ -30,6 +30,16 @@ jobs:
       - &create-plugin-cache-dir
         name: Create Plugin Cache Dir
         run: mkdir -p $TF_PLUGIN_CACHE_DIR
+
+      - &restore-cache-terraform-providers
+        name: Restore Terraform Cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.TF_PLUGIN_CACHE_DIR }}
+            terraform/.terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/.terraform.lock.hcl') }}
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -45,15 +55,14 @@ jobs:
           terraform fmt -recursive
 
       - &save-cache-terraform-providers
-        name: Save Cache Terraform Providers
+        name: Save Terraform Cache
+        if: steps.restore-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4
         with:
           path: |
             ${{ env.TF_PLUGIN_CACHE_DIR }}
-            terraform
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
-      - name: List files
-        run: ls -R terraform
+            terraform/.terraform
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
   # Step2 : Terraform validate
   terraform-validate:
@@ -65,14 +74,7 @@ jobs:
 
       - *create-plugin-cache-dir
 
-      - &restore-cache-terraform-providers
-        name: Restore Cache Terraform Providers
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ${{ env.TF_PLUGIN_CACHE_DIR }}
-            terraform
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+      - *restore-cache-terraform-providers
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
