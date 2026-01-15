@@ -1,7 +1,17 @@
 name: Opstealla Gate Approve Terraform pipeline
 on:
   workflow_call:
-
+    inputs:
+      max_retry_attempts:
+        description: "Maximum number of retry attempts for gate approval"
+        required: false
+        default: 20
+        type: number
+      wait_interval_seconds:
+        description: "Wait interval in seconds between retry attempts"
+        required: false
+        default: 10
+        type: number
 jobs:
   # Step6 : Gate Approval
   gate-approval:
@@ -11,12 +21,22 @@ jobs:
         run: |
           echo "Waiting for gate approval..."
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-          -X GET "${{ secrets.GATE_APPROVAL_API_ENDPOINT }}" \
-          -H "Accept: application/json" \
-          -d response.json)
+          MAX_RETRY_ATTEMPTS=${{ inputs.max_retry_attempts }}
+          WAIT_INTERVAL_SECONDS=${{ inputs.wait_interval_seconds }}
+          ATTEMPT=0
+          APPROVAL_STATUS="pending"
 
-          APPROVAL_STATUS=$(echo "$RESPONSE" | jq .approval_status)
+          until [ "$APPROVAL_STATUS" == "approved" ] || [ $ATTEMPT -ge $MAX_RETRY_ATTEMPTS ]; do
+            echo "Attempt $((ATTEMPT + 1)) of $MAX_RETRY_ATTEMPTS..."
+            RESPONSE=$(curl -s -w "\n%{http_code} -m $WAIT_INTERVAL_SECONDS" \
+              -X GET "${{ secrets.GATE_APPROVAL_API_ENDPOINT }}" \
+              -H "Accept: application/json" \
+              -d response.json)
+
+            APPROVAL_STATUS=$(echo "$RESPONSE" | jq .approval_status)
+
+            ATTEMPT=$((ATTEMPT + 1))
+          done
 
           if [ "$APPROVAL_STATUS" != "approved" ]; then
             echo "Gate not approved. Exiting pipeline."
