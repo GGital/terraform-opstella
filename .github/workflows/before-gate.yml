@@ -30,16 +30,6 @@ jobs:
       - &create-plugin-cache-dir
         name: Create Plugin Cache Dir
         run: mkdir -p $TF_PLUGIN_CACHE_DIR
-
-      - &cache-terraform-providers
-        name: Cache Terraform Providers
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.TF_PLUGIN_CACHE_DIR }}
-            terraform
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -49,6 +39,15 @@ jobs:
         id: fmt
         run: |
           terraform fmt -recursive
+
+      - &cache-terraform-providers
+        name: Cache Terraform Providers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.TF_PLUGIN_CACHE_DIR }}
+            terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
 
   # Step2 : Terraform validate
   terraform-validate:
