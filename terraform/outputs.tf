@@ -11,16 +11,3 @@ output "project_info" {
     terraform_version  = var.terraform_version
   }
 }
-
-output "approval_service_url" {
-  description = "URL of the approval service"
-  value       = var.approval_service_url
-}
-
-output "pipeline_config" {
-  description = "Local pipeline configuration"
-  value = {
-    orchestrator = var.pipeline_orchestrator_entrypoint
-    approval_api = "${var.approval_service_url}/approval"
-  }
-}
