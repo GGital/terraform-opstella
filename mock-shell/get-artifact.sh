@@ -13,7 +13,7 @@ until [ $RETRY_COUNT -ge $MAX_RETRIES ]; do
 
   echo "Trying to fetch artifact (Attempt: $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
 
-  RESPONSE=$(curl -s -H "Accept: application/vnd.github+json" \
+  RESPONSE=$(curl -s -m 3 -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer $GITHUB_TOKEN" \
     https://api.github.com/repos/$REPO/actions/artifacts)
   
@@ -25,7 +25,7 @@ until [ $RETRY_COUNT -ge $MAX_RETRIES ]; do
     # After the artifact is found, download it
 
     DOWNLOAD_URL="https://api.github.com/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip"
-    curl -L -s -H "Accept: application/vnd.github+json" \
+    curl -L -s -m 3 -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer $GITHUB_TOKEN" \
       -o "${ARTIFACT_NAME}.zip" \
       $DOWNLOAD_URL
