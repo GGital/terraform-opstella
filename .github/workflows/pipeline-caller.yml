@@ -9,12 +9,12 @@ jobs:
     uses: ./.github/workflows/before-gate.yml
     secrets: inherit
 
-  gate-approval-pipeline:
-    uses: ./.github/workflows/gate-approval.yml
-    needs: before-gate-pipeline
-    secrets: inherit
+  # gate-approval-pipeline:
+  #   uses: ./.github/workflows/gate-approval.yml
+  #   needs: before-gate-pipeline
+  #   secrets: inherit
 
-  after-gate-pipeline:
-    uses: ./.github/workflows/after-gate.yml
-    needs: gate-approval-pipeline
-    secrets: inherit
+  # after-gate-pipeline:
+  #   uses: ./.github/workflows/after-gate.yml
+  #   needs: gate-approval-pipeline
+  #   secrets: inherit
