@@ -2,6 +2,9 @@ name: Opstella Terraform Pipeline Caller
 on:
   repository_dispatch:
     types: [before-approve]
+  push:
+    branches:
+      - main
 
 jobs:
   before-gate-pipeline:
