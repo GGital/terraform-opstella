@@ -203,20 +203,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "Waiting for an 'APPROVED' review on PR #$PR_NUMBER..."
+          echo "Waiting for the 'deploy-to-cd' label on PR #$PR_NUMBER..."
 
           while true; do
-            # Get the list of reviews and check for 'APPROVED'
-            APPROVAL_STATUS=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews \
-              --jq '. | map(select(.state == "APPROVED")) | length')
+            # Check if the PR has the specific label
+            HAS_LABEL=$(gh pr view $PR_NUMBER --json labels --jq '.labels[] | select(.name == "deploy-to-cd") | .name')
 
-            if [ "$APPROVAL_STATUS" -gt 0 ]; then
-              echo "PR has been approved! Proceeding to CD..."
+            if [ "$HAS_LABEL" == "deploy-to-cd" ]; then
+              echo "Label detected! Starting CD..."
               break
             fi
 
-            echo "Still waiting for approval... (checking again in 20s)"
-            sleep 20
+            echo "Still waiting for label... (checking again in 60s)"
+            sleep 60
           done
 
   terraform-apply:
