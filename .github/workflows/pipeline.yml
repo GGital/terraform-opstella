@@ -207,7 +207,13 @@ jobs:
         run: |
           echo "Waiting for the 'deploy-to-cd' label on PR #$PR_NUMBER..."
 
-          while true; do
+          gh pr edit $PR_NUMBER --add-label "waiting-for-approval"
+
+          MAX_RETRIES=20
+          RETRY_COUNT=0
+          INTERVAL=20
+
+          until [ $RETRY_COUNT -ge $MAX_RETRIES ]; do 
             # Check if the PR has the specific label
             HAS_LABEL=$(gh pr view $PR_NUMBER --json labels --jq '.labels[] | select(.name == "deploy-to-cd") | .name')
 
@@ -217,7 +223,7 @@ jobs:
             fi
 
             echo "Still waiting for label... (checking again in 20s)"
-            sleep 20
+            sleep $INTERVAL
           done
 
   terraform-apply:
