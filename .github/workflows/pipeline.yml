@@ -204,7 +204,7 @@ jobs:
       - uses: trstringer/manual-approval@v1
         with:
           secret: ${{ secrets.GH_TOKEN }}
-          approvers: user1,user2,org-team1
+          approvers: ${{ github.repository_owner }}
           minimum-approvals: 1
           issue-title: "Applying ${{ github.ref }}"
           issue-body-file-path: ${{ inputs.terraform_plan_output_filename }}
