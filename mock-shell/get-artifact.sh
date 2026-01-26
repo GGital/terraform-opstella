@@ -47,7 +47,7 @@ until [ $RETRY_COUNT -ge $MAX_RETRIES ]; do
         '.artifacts | map(select(.name == $NAME and .workflow_run.head_sha == $SHA)) | max_by(.created_at) | .id // empty')
 
       if [ -n "$ARTIFACT_ID" ]; then
-        TARGET_DIR="./$PR_SHA"
+        TARGET_DIR="./$PR_NUM"
         if [ ! -d "$TARGET_DIR" ]; then
           echo "  -> Downloading artifact for PR #$PR_NUM into $TARGET_DIR..."
           mkdir -p "$TARGET_DIR"
