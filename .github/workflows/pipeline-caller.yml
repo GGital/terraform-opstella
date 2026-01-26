@@ -8,3 +8,6 @@ jobs:
   pipeline:
     uses: ./.github/workflows/pipeline.yml
     secrets: inherit
+    permissions:
+      issues: write
+      contents: read
