@@ -1,9 +1,9 @@
 name: Opstella Terraform Pipeline Caller
 on:
-  push:
+  pull_request:
     branches:
       - main
-  workflow_dispatch:
+    types: [opened, synchronize, reopened]
 jobs:
   pipeline:
     uses: ./.github/workflows/pipeline.yml
