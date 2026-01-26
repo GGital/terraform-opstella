@@ -189,7 +189,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: terraform-plan-output
-          path: ${{ inputs.terraform_plan_output_filename }}
+          path: "${{ inputs.terraform_plan_output_filename }}.json"
           retention-days: ${{ inputs.report_retention_days }}
 
       - *save-cache-terraform-providers
