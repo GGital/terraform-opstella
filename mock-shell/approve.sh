@@ -1,8 +1,11 @@
 #!/bin/bash
 # Approved the plan
 
+source "$(dirname "$0")/.env"
+
 PR_NUMBER=$1
 LABEL_NAME="deploy-to-cd"
+REPO="GGital/terraform-opstella"
 
 curl -L \
   -X POST \

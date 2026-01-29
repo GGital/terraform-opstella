@@ -247,3 +247,7 @@ jobs:
       - name: Terraform Apply
         run: |
           terraform -chdir=terraform apply -auto-approve
+      - name: Close PR via CLI
+        run: gh pr close ${{ github.event.pull_request.number }} --comment "Closing this PR because it does not meet requirements."
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
