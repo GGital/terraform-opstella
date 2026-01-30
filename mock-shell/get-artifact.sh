@@ -3,7 +3,8 @@
 
 source "$(dirname "$0")/.env"
 
-REPO="GGital/terraform-opstella"
+GITHUB_TOKEN=$(echo "$GITHUB_TOKEN" | tr -d '\r ')
+REPO=$(echo "GGital/terraform-opstella" | tr -d '\r ')
 WORKFLOW_FILE="pipeline-caller.yml"
 ARTIFACT_NAME="terraform-plan-output"
 
@@ -22,7 +23,7 @@ RUNS_JSON=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
   "https://api.github.com/repos/$REPO/actions/workflows/$WORKFLOW_FILE/runs?status=completed&created=%3E$THREE_DAYS_AGO")
 
 # Extract only the Run IDs
-RUN_IDS=$(echo "$RUNS_JSON" | jq -r '.workflow_runs[].id')
+RUN_IDS=$(echo "$RUNS_JSON" | jq -r '.workflow_runs[].id' | tr -d '\r ')
 
 if [ -z "$RUN_IDS" ] || [ "$RUN_IDS" == "null" ]; then
     echo "No completed runs found in the last 3 days."
@@ -40,14 +41,33 @@ for RUN_ID in $RUN_IDS; do
 
     echo "Processing Run ID: $RUN_ID..."
 
-    # 3. Get the artifact ID for this specific run
-    ARTIFACT_RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-      "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/artifacts")
-    
-    ARTIFACT_ID=$(echo "$ARTIFACT_RESPONSE" | jq -r --arg NAME "$ARTIFACT_NAME" '.artifacts | map(select(.name == $NAME)) | .[0].id // empty')
+    ARTIFACT_ID=""
+    ATTEMPT=1
+    MAX_ATTEMPTS=3
 
-    if [ -z "$ARTIFACT_ID" ]; then
-        echo "  - No artifact named '$ARTIFACT_NAME' found for this run. Skipping."
+    while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+        RESPONSE=$(curl -s -L \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/artifacts")
+        
+        echo $RESPONSE # For debugging
+        # Robust JQ: Search for the name and get ID
+        ARTIFACT_ID=$(echo "$RESPONSE" | jq -r --arg NAME "$ARTIFACT_NAME" '
+            .artifacts[] | select(.name == $NAME) | .id
+        ' | head -n 1)
+
+        if [ -n "$ARTIFACT_ID" ] && [ "$ARTIFACT_ID" != "null" ]; then
+            break
+        fi
+
+        echo "  - (Attempt $ATTEMPT) Artifact not found yet. API might be stale. Waiting 5s..."
+        sleep 5
+        ((ATTEMPT++))
+    done
+
+    if [ -z "$ARTIFACT_ID" ] || [ "$ARTIFACT_ID" == "null" ]; then
+        echo "  - Artifact $ARTIFACT_NAME not found for Run ID: $RUN_ID after $MAX_ATTEMPTS attempts. Skipping."
         continue
     fi
 
