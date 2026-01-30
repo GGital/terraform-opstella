@@ -1,8 +1,10 @@
-name: Opstella Terraform Pipeline Caller #
+name: Opstella Terraform Pipeline Caller
 on:
-  repository_dispatch:
-    types: [before-approve]
+  workflow_dispatch:
 
+  push:
+    branches:
+      - two_workflow
 jobs:
   pipeline:
     uses: ./.github/workflows/pipeline.yml

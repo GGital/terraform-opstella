@@ -1,7 +1,6 @@
 name: Opstella After Gate Approve Terraform pipeline
 on:
-  repository_dispatch:
-    types: [gate-approved]
+  workflow_dispatch:
 
 jobs:
   # Step7 : Terraform apply
