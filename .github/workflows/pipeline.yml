@@ -17,12 +17,24 @@ on:
         required: false
         default: 7
         type: number
+
+      terraform_directory:
+        description: "Directory containing Terraform configuration"
+        required: false
+        default: "terraform"
+        type: string
+      allow_failed_security_gate:
+        description: "Allow pipeline to continue even if security gate fails"
+        required: false
+        default: false
+        type: boolean
 env:
   TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
 jobs:
   # Step1 : Terraform Format Check
   terraform-format:
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && always()}}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,12 +58,12 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform -chdir=terraform init -input=false
+          terraform -chdir=${{ inputs.terraform_directory }} init -input=false
 
       - name: Terraform Format Check
         id: fmt
         run: |
-          terraform -chdir=terraform fmt -recursive
+          terraform -chdir=${{ inputs.terraform_directory }} fmt -recursive
 
       - &save-cache-terraform-providers
         name: Save Terraform Cache
@@ -65,6 +77,7 @@ jobs:
   # Step2 : Terraform validate
   terraform-validate:
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && always() && needs.terraform-format.result == 'success'}}
     needs: terraform-format
     steps:
       - name: Checkout repository
@@ -79,19 +92,20 @@ jobs:
         with:
           terraform_version: 1.5.7
       - name: Terraform Init (Link Plugins)
-        run: terraform -chdir=terraform init -input=false
+        run: terraform -chdir=${{ inputs.terraform_directory }} init -input=false
       - name: Terraform Validate
         run: |
-          terraform -chdir=terraform validate
+          terraform -chdir=${{ inputs.terraform_directory }} validate || (echo "Error: Terraform validation failed." && exit 1)
 
       - *save-cache-terraform-providers
 
       - name: List files
-        run: ls -R terraform
+        run: ls -R ${{ inputs.terraform_directory }}
 
   # Step3 : TF Lint
   terraform-lint:
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && always() && needs.terraform-validate.result == 'success'}}
     needs: terraform-validate
     steps:
       - name: Checkout repository
@@ -109,20 +123,20 @@ jobs:
 
       - name: Run tflint
         run: |
-          cd terraform
+          cd ${{ inputs.terraform_directory }}
           tflint --init
-          tflint
+          tflint -f compact || (echo "Error: TFLint found issues." && exit 1)
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - *save-cache-terraform-providers
 
       - name: List files
-        run: ls -R terraform
-
+        run: ls -R ${{ inputs.terraform_directory }}
   # Step4 : Trivy IaC Scan
   Trivy-IAC-scan:
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && always() && needs.terraform-lint.result == 'success'}}
     needs: terraform-lint
     steps:
       - name: Checkout repository
@@ -130,14 +144,6 @@ jobs:
 
       - name: Install Helm
         uses: azure/setup-helm@v4
-
-      # - name: Generate Kubernetes Manifest files with Helm Template
-      #   if: "${{ inputs.helm_values_file != '' }}"
-      #   run: |
-      #     helm template -f ${{ inputs.helm_values_file }} --namespace not-default \
-      #       ${{ inputs.sourcecode_repo }}-${{ inputs.deploy_env }} \
-      #       ${{ inputs.helm_chart_name }} --version ${{ inputs.helm_chart_version }} \
-      #       > ${{ inputs.sourcecode_repo }}-manifest.yaml
 
       - name: Generate Trivy IaC Vulnerability Report
         uses: aquasecurity/trivy-action@0.33.1
@@ -147,8 +153,10 @@ jobs:
           scanners: "misconfig,secret"
           format: json
           # trivyignores: .trivyignore
-          output:
-            ${{ inputs.trivy_iac_report_filename }}
+          output: ${{ inputs.trivy_iac_report_filename }}
+          exit-code: ${{ inputs.allow_failed_security_gate == true && '0' || '1' }}
+          severity:
+            "HIGH,CRITICAL"
 
             # ${{ inputs.sourcecode_repo }}-manifest.yaml
       - name: Upload Trivy IaC Report
@@ -162,6 +170,7 @@ jobs:
   # Step5 : Terraform Plan
   Terraform-plan:
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && always() && needs.Trivy-IAC-scan.result == 'success'}}
     needs: Trivy-IAC-scan
     steps:
       - name: Checkout repository
@@ -177,13 +186,13 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform Init (Link Plugins)
-        run: terraform -chdir=terraform init -input=false
+        run: terraform -chdir=${{ inputs.terraform_directory }} init -input=false
 
       - name: Terraform Plan
-        run: terraform -chdir=terraform plan -out=tfplan.binary
+        run: terraform -chdir=${{ inputs.terraform_directory }} plan -out=tfplan.binary || exit 1
       - name: Terraform form Plan Output
         run: |
-          terraform -chdir=terraform show -json tfplan.binary > "${{ inputs.terraform_plan_output_filename }}.json"
+          terraform -chdir=${{ inputs.terraform_directory }} show -json tfplan.binary > "${{ inputs.terraform_plan_output_filename }}.json"
 
       - name: Upload Terraform Plan Output
         uses: actions/upload-artifact@v6
@@ -196,10 +205,15 @@ jobs:
 
   wait-for-approval:
     runs-on: ubuntu-latest
+    if: ${{ !cancelled() && always() && needs.Terraform-plan.result == 'success'}}
     needs: Terraform-plan
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Check if artifact exists
+        run: |
+          echo "Checking for Terraform plan artifact..."
+          gh run download ${{ github.run_id }} --name terraform-plan-output --dir ./artifact || { echo "Artifact not found! Exiting..."; exit 1; }
       - name: Wait for PR Approval
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -230,6 +244,7 @@ jobs:
 
   terraform-apply:
     runs-on: ubuntu-latest
+    if: ${{ success() }}
     needs: wait-for-approval
     steps:
       - name: Checkout repository
@@ -242,12 +257,12 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform -chdir=terraform init
+          terraform -chdir=${{ inputs.terraform_directory }} init
 
       - name: Terraform Apply
         run: |
-          terraform -chdir=terraform apply -auto-approve
+          terraform -chdir=${{ inputs.terraform_directory }} apply -auto-approve
       - name: Close PR via CLI
-        run: gh pr close ${{ github.event.pull_request.number }} --comment "Closing this PR because it does not meet requirements."
+        run: gh pr close ${{ github.event.pull_request.number }} --comment "Finished applying Terraform changes. Closing the PR."
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
