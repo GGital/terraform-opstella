@@ -1,3 +1,4 @@
 .env
 terraform-plan-output
 terraform-plan-output.zip
+terraform-plan-output.json

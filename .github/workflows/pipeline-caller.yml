@@ -4,6 +4,8 @@ on:
     branches:
       - main
     types: [opened, synchronize, reopened]
+  repository_dispatch:
+    types: [before-approve]
 jobs:
   pipeline:
     uses: ./.github/workflows/pipeline.yml
