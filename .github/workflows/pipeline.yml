@@ -214,6 +214,8 @@ jobs:
         run: |
           echo "Checking for Terraform plan artifact..."
           gh run download ${{ github.run_id }} --name terraform-plan-output --dir ./artifact || { echo "Artifact not found! Exiting..."; exit 1; }
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
       - name: Wait for PR Approval
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
