@@ -1,4 +1,4 @@
-name: Opstella Terraform Pipeline Caller
+name: Opstella Terraform Pipeline Caller #
 on:
   pull_request:
     branches:
@@ -7,8 +7,20 @@ on:
   repository_dispatch:
     types: [before-approve]
 jobs:
+  check-secret-and-variables:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if GH_TOKEN secret working
+        run: |
+          if [ -z "${{ secrets.GH_TOKEN }}" ]; then
+            echo "Error: GH_TOKEN secret is not set. Exiting..."
+            exit 1
+          else
+            echo "GH_TOKEN secret is set."
+          fi
   pipeline:
     uses: ./.github/workflows/pipeline.yml
+    needs: check-secret-and-variables
     secrets: inherit
     permissions:
       issues: write
